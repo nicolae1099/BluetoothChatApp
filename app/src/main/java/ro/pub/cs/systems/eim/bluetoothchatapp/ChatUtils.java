@@ -1,5 +1,7 @@
 package ro.pub.cs.systems.eim.bluetoothchatapp;
 
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
@@ -50,7 +52,7 @@ public class ChatUtils {
 
     public synchronized void setState(int state) {
         this.state = state;
-        handler.obtainMessage(MainActivity.MESSAGE_STATE_CHANGED, state, -1).sendToTarget();
+        handler.obtainMessage(Constants.MESSAGE_STATE_CHANGED, state, -1).sendToTarget();
     }
 
     public synchronized void start() {
@@ -123,30 +125,36 @@ public class ChatUtils {
 
         public AcceptThread() {
             BluetoothServerSocket tmp = null;
-            if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-            try {
-                String APP_NAME = "BluetoothChatApp";
-                tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID);
-            } catch (IOException e) {
-                Log.e("Accept->Constructor", e.toString());
+            if (ActivityCompat.checkSelfPermission(context, BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                try {
+                    String APP_NAME = "BluetoothChatApp";
+                    tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID);
+                } catch (IOException e) {
+                    Log.e("Accept->Constructor", e.toString());
+                }
+            } else {
+                Log.e("Accept->Constructor", "Bluetooth connect permission not granted");
             }
 
             serverSocket = tmp;
         }
 
+
         public void run() {
             BluetoothSocket socket = null;
-            try {
-                socket = serverSocket.accept();
-            } catch (IOException e) {
-                Log.e("Accept->Run", e.toString());
+            if (serverSocket != null) {
                 try {
-                    serverSocket.close();
-                } catch (IOException e1) {
-                    Log.e("Accept->Close", e.toString());
+                    socket = serverSocket.accept();
+                } catch (IOException e) {
+                    Log.e("Accept->Run", e.toString());
+                    try {
+                        serverSocket.close();
+                    } catch (IOException e1) {
+                        Log.e("Accept->Close", e.toString());
+                    }
                 }
+            } else {
+                Log.e("Accept->Run", "Server socket is null");
             }
 
             if (socket != null) {
@@ -182,7 +190,7 @@ public class ChatUtils {
 
         public ConnectThread(BluetoothDevice device) {
             this.device = device;
-            if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(context, BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }
             BluetoothSocket tmp = null;
@@ -197,7 +205,7 @@ public class ChatUtils {
         }
 
         public void run() {
-            if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(context, BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }
             try {
@@ -260,7 +268,7 @@ public class ChatUtils {
                 try {
                     bytes = inputStream.read(buffer);
 
-                    handler.obtainMessage(MainActivity.MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+                    handler.obtainMessage(Constants.MESSAGE_READ, bytes, -1, buffer).sendToTarget();
                 } catch (IOException e) {
                     connectionLost();
                 }
@@ -270,7 +278,7 @@ public class ChatUtils {
         public void write(byte[] buffer) {
             try {
                 outputStream.write(buffer);
-                handler.obtainMessage(MainActivity.MESSAGE_WRITE, -1, -1, buffer).sendToTarget();
+                handler.obtainMessage(Constants.MESSAGE_WRITE, -1, -1, buffer).sendToTarget();
             } catch (IOException e) {
                 Log.d("Connected->Write", e.toString());
             }
@@ -286,9 +294,9 @@ public class ChatUtils {
     }
 
     private void connectionLost() {
-        Message message = handler.obtainMessage(MainActivity.MESSAGE_TOAST);
+        Message message = handler.obtainMessage(Constants.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
-        bundle.putString(MainActivity.TOAST, "Connection Lost");
+        bundle.putString(Constants.TOAST, "Connection Lost");
         message.setData(bundle);
         handler.sendMessage(message);
 
@@ -296,9 +304,9 @@ public class ChatUtils {
     }
 
     private synchronized void connectionFailed() {
-        Message message = handler.obtainMessage(MainActivity.MESSAGE_TOAST);
+        Message message = handler.obtainMessage(Constants.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
-        bundle.putString(MainActivity.TOAST, "Cant connect to the device");
+        bundle.putString(Constants.TOAST, "Cant connect to the device");
         message.setData(bundle);
         handler.sendMessage(message);
 
@@ -319,12 +327,12 @@ public class ChatUtils {
         connectedThread = new ConnectedThread(socket);
         connectedThread.start();
 
-        Message message = handler.obtainMessage(MainActivity.MESSAGE_DEVICE_NAME);
+        Message message = handler.obtainMessage(Constants.MESSAGE_DEVICE_NAME);
         Bundle bundle = new Bundle();
-        if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(context, BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        bundle.putString(MainActivity.DEVICE_NAME, device.getName());
+        bundle.putString(Constants.DEVICE_NAME, device.getName());
         message.setData(bundle);
         handler.sendMessage(message);
 

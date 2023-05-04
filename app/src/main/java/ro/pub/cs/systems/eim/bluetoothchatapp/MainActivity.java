@@ -1,6 +1,12 @@
 package ro.pub.cs.systems.eim.bluetoothchatapp;
 
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+import static android.Manifest.permission.BLUETOOTH;
+import static android.Manifest.permission.BLUETOOTH_ADMIN;
+import static android.Manifest.permission.BLUETOOTH_ADVERTISE;
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_SCAN;
 
 import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
@@ -23,6 +29,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
@@ -32,14 +40,6 @@ public class MainActivity extends AppCompatActivity {
     private EditText edCreateMessage;
     private ArrayAdapter<String> adapterMainChat;
 
-    public static final int MESSAGE_STATE_CHANGED = 0;
-    public static final int MESSAGE_READ = 1;
-    public static final int MESSAGE_WRITE = 2;
-    public static final int MESSAGE_DEVICE_NAME = 3;
-    public static final int MESSAGE_TOAST = 4;
-
-    public static final String DEVICE_NAME = "deviceName";
-    public static final String TOAST = "toast";
     private String connectedDevice;
 
     private final ActivityResultLauncher<Intent> selectDeviceLauncher =
@@ -63,14 +63,21 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public boolean handleMessage(Message message) {
             switch (message.what) {
-                case MESSAGE_STATE_CHANGED -> updateConnectionState(message.arg1);
-                case MESSAGE_WRITE -> displayMessage("Me", message.obj);
-                case MESSAGE_READ -> displayMessage(connectedDevice, message.obj);
-                case MESSAGE_DEVICE_NAME -> {
-                    connectedDevice = message.getData().getString(DEVICE_NAME);
-                    Toast.makeText(MainActivity.this, connectedDevice, Toast.LENGTH_SHORT).show();
-                }
-                case MESSAGE_TOAST -> Toast.makeText(MainActivity.this, message.getData().getString(TOAST), Toast.LENGTH_SHORT).show();
+                case Constants.MESSAGE_STATE_CHANGED:
+                    updateConnectionState(message.arg1);
+                    break;
+                case Constants.MESSAGE_WRITE:
+                    displayMessage("Me", message.obj);
+                    break;
+                case Constants.MESSAGE_READ:
+                    displayMessage(connectedDevice, message.obj);
+                    break;
+                case Constants.MESSAGE_DEVICE_NAME:
+                    setConnectedDevice(message);
+                    break;
+                case Constants.MESSAGE_TOAST:
+                    displayToast(message);
+                    break;
             }
             return false;
         }
@@ -97,6 +104,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        requestPermissionsIfNeeded();
+
         initViews();
         initBluetooth();
         chatUtils = new ChatUtils(MainActivity.this, handler);
@@ -110,7 +119,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
     private void initViews() {
         ListView listMainChat = findViewById(R.id.list_conversation);
         edCreateMessage = findViewById(R.id.ed_enter_message);
@@ -121,7 +129,6 @@ public class MainActivity extends AppCompatActivity {
 
         btnSendMessage.setOnClickListener(view -> sendMessage());
     }
-
     private void sendMessage() {
         String message = edCreateMessage.getText().toString();
         if (!message.isEmpty()) {
@@ -155,7 +162,6 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-
     private void checkPermissions() {
         if (ContextCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(ACCESS_FINE_LOCATION);
@@ -163,17 +169,6 @@ public class MainActivity extends AppCompatActivity {
             selectDeviceLauncher.launch(new Intent(this, DeviceListActivity.class));
         }
     }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        int SELECT_DEVICE = 102;
-        if (requestCode == SELECT_DEVICE && resultCode == RESULT_OK) {
-            String address = data.getStringExtra("deviceAddress");
-            chatUtils.connect(bluetoothAdapter.getRemoteDevice(address));
-        }
-        super.onActivityResult(requestCode, resultCode, data);
-    }
-
 
     private void showPermissionDialog() {
         new AlertDialog.Builder(this)
@@ -185,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void enableBluetooth() {
         if (!bluetoothAdapter.isEnabled()) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(this, BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }
             bluetoothAdapter.enable();
@@ -205,4 +200,53 @@ public class MainActivity extends AppCompatActivity {
             chatUtils.stop();
         }
     }
+
+    private void setConnectedDevice(Message message) {
+        connectedDevice = message.getData().getString(Constants.DEVICE_NAME);
+        Toast.makeText(MainActivity.this, connectedDevice, Toast.LENGTH_SHORT).show();
+    }
+
+    private void displayToast(Message message) {
+        Toast.makeText(MainActivity.this, message.getData().getString(Constants.TOAST), Toast.LENGTH_SHORT).show();
+    }
+
+    private static final int PERMISSION_REQUEST_CODE = 1;
+
+    private void requestPermissionsIfNeeded() {
+        String[] permissions = {
+                BLUETOOTH,
+                BLUETOOTH_ADMIN,
+                ACCESS_FINE_LOCATION,
+                ACCESS_COARSE_LOCATION,
+                BLUETOOTH_ADVERTISE,
+                BLUETOOTH_CONNECT,
+                BLUETOOTH_SCAN
+        };
+
+        List<String> permissionsNeeded = new ArrayList<>();
+
+        for (String permission : permissions) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                permissionsNeeded.add(permission);
+            }
+        }
+
+        if (!permissionsNeeded.isEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsNeeded.toArray(new String[0]), PERMISSION_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            for (int i = 0; i < permissions.length; i++) {
+                if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "Permission not granted: " + permissions[i], Toast.LENGTH_SHORT).show();
+                }
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
 }
+
