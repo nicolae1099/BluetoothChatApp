@@ -21,12 +21,14 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import java.util.HashSet;
 import java.util.Set;
 
 public class DeviceListActivity extends AppCompatActivity {
     private ProgressBar progressScanDevices;
     private ArrayAdapter<String> adapterPairedDevices, adapterAvailableDevices;
     private BluetoothAdapter bluetoothAdapter;
+    private Set<String> discoveredDeviceAddresses;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +56,8 @@ public class DeviceListActivity extends AppCompatActivity {
 
         registerReceiver(bluetoothDeviceListener, new IntentFilter(BluetoothDevice.ACTION_FOUND));
         registerReceiver(bluetoothDeviceListener, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
+        discoveredDeviceAddresses = new HashSet<>();
+
     }
 
     private void onDeviceClick(AdapterView<?> adapterView, View view, int i, long l) {
@@ -76,7 +80,7 @@ public class DeviceListActivity extends AppCompatActivity {
             return;
         }
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-        if (pairedDevices != null && pairedDevices.size() > 0) {
+        if (pairedDevices != null && !pairedDevices.isEmpty()) {
             for (BluetoothDevice device : pairedDevices) {
                 adapterPairedDevices.add(device.getName() + "\n" + device.getAddress());
             }
@@ -93,8 +97,9 @@ public class DeviceListActivity extends AppCompatActivity {
                 if (ActivityCompat.checkSelfPermission(DeviceListActivity.this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                     return;
                 }
-                if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
+                if (device != null && !discoveredDeviceAddresses.contains(device.getAddress())) {
                     adapterAvailableDevices.add(device.getName() + "\n" + device.getAddress());
+                    discoveredDeviceAddresses.add(device.getAddress());
                 }
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
                 onDiscoveryFinished();

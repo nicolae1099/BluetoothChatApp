@@ -5,5 +5,5 @@
         android:id="@+id/menu_scan_devices"
         android:icon="@drawable/ic_bluetooth_searching"
         android:title="@string/str_menu_scan_devices"
-        app:showAsAction="always" />
+        app:showAsAction="withText" />
 </menu>

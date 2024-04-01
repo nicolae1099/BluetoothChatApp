@@ -24,6 +24,7 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -61,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
 
     private final Handler handler = new Handler(new Handler.Callback() {
         @Override
-        public boolean handleMessage(Message message) {
+        public boolean handleMessage(@NonNull Message message) {
             switch (message.what) {
                 case Constants.MESSAGE_STATE_CHANGED:
                     updateConnectionState(message.arg1);
@@ -213,15 +214,18 @@ public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE = 1;
 
     private void requestPermissionsIfNeeded() {
-        String[] permissions = {
-                BLUETOOTH,
-                BLUETOOTH_ADMIN,
-                ACCESS_FINE_LOCATION,
-                ACCESS_COARSE_LOCATION,
-                BLUETOOTH_ADVERTISE,
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_SCAN
-        };
+        String[] permissions = new String[0];
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            permissions = new String[]{
+                    BLUETOOTH,
+                    BLUETOOTH_ADMIN,
+                    ACCESS_FINE_LOCATION,
+                    ACCESS_COARSE_LOCATION,
+                    BLUETOOTH_ADVERTISE,
+                    BLUETOOTH_CONNECT,
+                    BLUETOOTH_SCAN
+            };
+        }
 
         List<String> permissionsNeeded = new ArrayList<>();
 
@@ -237,7 +241,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == PERMISSION_REQUEST_CODE) {
             for (int i = 0; i < permissions.length; i++) {
                 if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {

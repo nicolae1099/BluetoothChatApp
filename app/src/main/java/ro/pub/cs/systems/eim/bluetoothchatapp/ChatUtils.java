@@ -121,7 +121,7 @@ public class ChatUtils {
     }
 
     private class AcceptThread extends Thread {
-        private BluetoothServerSocket serverSocket;
+        private final BluetoothServerSocket serverSocket;
 
         public AcceptThread() {
             BluetoothServerSocket tmp = null;
